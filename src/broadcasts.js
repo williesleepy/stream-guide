@@ -81,6 +81,14 @@ export class BroadcastResolver {
     }
   }
 
+  tournamentSlugs() {
+    return [...new Set(
+      this.rules
+        .map((rule) => clean(rule.tournamentSlug))
+        .filter(Boolean),
+    )];
+  }
+
   overrideBroadcasts(summary) {
     const broadcasts = [];
     this.rules.forEach((rule, ruleIndex) => {
