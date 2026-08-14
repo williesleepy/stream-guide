@@ -44,7 +44,7 @@ Some organizers reuse one start.gg tournament page for many brackets over months
 
 Compact multi-day tournaments are treated differently: a genuine tournament spanning up to seven days remains one tournament, so a large main bracket can keep it notable across the days that tournament is actually running.
 
-Today's notable tournaments are selected first, then the rest of the weekly slots are filled by the strongest remaining candidates. Ranking favors tier signal among already-qualified events, then relevant Smash entrants, then tournament attendance.
+Today's notable tournaments are selected first, then the rest of the weekly slots are filled by the strongest remaining candidates. Ranking favors relevant Smash entrants first, then uses competition-tier presence and tournament attendance only as tiebreakers. This prevents smaller tiered events from crowding a much larger major out of the weekly slots.
 
 A tournament is only eligible for the guide when it has credible broadcast evidence. By default that means start.gg returns at least one enabled tournament stream. For known majors whose organizers publish broadcasts elsewhere, `config/broadcast-overrides.json` can provide an exact tournament-slug fallback to an official broadcast page or channel. Broadcast availability is checked before display slot limits are applied, so an unstreamed higher-ranked tournament does not block a lower-ranked notable tournament that does have broadcast information.
 
@@ -241,3 +241,8 @@ When optional Twitch verification is configured, Twitch is authoritative only fo
 ### Today / concluded behavior
 
 **Happening Today** is evaluated in each tournament’s own start.gg timezone (falling back to `DISPLAY_TIMEZONE` when unavailable). A tournament is removed when all Smash events are `COMPLETED` or when it is at least **4 hours past its scheduled end**, which prevents stale unfinished brackets from lingering overnight.
+
+
+### Override discovery seeding
+
+Exact `tournamentSlug` entries in `config/broadcast-overrides.json` are fetched directly from start.gg and merged into weekly discovery before notability and broadcast gates run. This prevents a major with a known official broadcast (for example CEO) from disappearing solely because start.gg's broad tournament search omitted it.
