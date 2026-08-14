@@ -212,8 +212,8 @@ export class GuideService {
     const aMetrics = this.notabilityMetrics(a.summary, a.events);
     const bMetrics = this.notabilityMetrics(b.summary, b.events);
     return (
-      Number(bMetrics.hasCompetitionTier) - Number(aMetrics.hasCompetitionTier) ||
       bMetrics.maxEntrants - aMetrics.maxEntrants ||
+      Number(bMetrics.hasCompetitionTier) - Number(aMetrics.hasCompetitionTier) ||
       b.summary.numAttendees - a.summary.numAttendees ||
       a.summary.startAt - b.summary.startAt
     );
@@ -294,13 +294,60 @@ export class GuideService {
     }
   }
 
+  async overrideSeedSummaries() {
+    if (
+      !this.broadcastResolver ||
+      typeof this.broadcastResolver.tournamentSlugs !== 'function' ||
+      typeof this.startgg.getTournamentSummaryBySlug !== 'function'
+    ) {
+      return [];
+    }
+
+    const slugs = this.broadcastResolver.tournamentSlugs();
+    if (!slugs.length) return [];
+
+    const results = await Promise.allSettled(
+      slugs.map((slug) => this.startgg.getTournamentSummaryBySlug(slug)),
+    );
+
+    const summaries = [];
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        summaries.push(result.value);
+        this.logger.info?.(
+          `Seeded override tournament into discovery: ${result.value.name} (${slugs[index]})`,
+        );
+        return;
+      }
+      this.logger.warn(
+        `Could not seed override tournament ${slugs[index]} into discovery: ${result.reason?.message ?? result.reason}`,
+      );
+    });
+    return summaries;
+  }
+
   async discover(now) {
     const [weekStart, weekEnd] = this.weekBounds(now);
     const discovered = await this.startgg.discoverWeek(
       Math.floor(weekStart.getTime() / 1000),
       Math.floor(weekEnd.getTime() / 1000),
     );
-    const summaries = await this.hydrateSuspiciousSchedules(discovered, weekStart, weekEnd);
+
+    // Broadcast overrides must be able to rescue a tournament that start.gg's
+    // generic videogame-filtered tournament search fails to return. Fetch exact
+    // override slugs directly, then merge them into discovery before any date,
+    // notability, or broadcast eligibility gates run.
+    const overrideSeeds = await this.overrideSeedSummaries();
+    const mergedDiscovered = new Map();
+    for (const summary of [...discovered, ...overrideSeeds]) {
+      mergedDiscovered.set(summary.id || summary.slug, summary);
+    }
+
+    const summaries = await this.hydrateSuspiciousSchedules(
+      [...mergedDiscovered.values()],
+      weekStart,
+      weekEnd,
+    );
 
     const weeklyCandidates = summaries
       .filter((summary) => GuideService.overlaps(summary, weekStart, weekEnd))
