@@ -1,0 +1,38 @@
+services:
+  - type: worker
+    name: stream-guide
+    runtime: node
+    plan: starter
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: DISCORD_CHANNEL_ID
+        sync: false
+      - key: STARTGG_API_TOKEN
+        sync: false
+      - key: DISPLAY_TIMEZONE
+        value: America/New_York
+      - key: REFRESH_SECONDS
+        value: "60"
+      - key: DISCOVERY_REFRESH_SECONDS
+        value: "300"
+      - key: MIN_NOTABLE_OFFLINE_ENTRANTS
+        value: "80"
+      - key: MIN_NOTABLE_ONLINE_ENTRANTS
+        value: "128"
+      - key: MIN_NOTABLE_ATTENDEES
+        value: "100"
+      - key: MAX_WEEKLY_TOURNAMENTS
+        value: "10"
+      - key: MAX_TODAY_TOURNAMENTS
+        value: "5"
+      - key: STARTGG_MAX_DISCOVERY_PAGES
+        value: "30"
+      - key: BROADCAST_OVERRIDES_PATH
+        value: config/broadcast-overrides.json
+      - key: LOG_LEVEL
+        value: INFO

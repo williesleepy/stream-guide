@@ -1,0 +1,13 @@
+[
+  {
+    "tournamentSlug": "tournament/ceo-2026",
+    "note": "CEO's official site directs viewers to this page for all CEO 2026 Twitch broadcasts.",
+    "broadcasts": [
+      {
+        "streamName": "Official CEO 2026 broadcast hub",
+        "streamSource": "WEB",
+        "url": "https://ceogaming.org/tv/"
+      }
+    ]
+  }
+]
