@@ -53,6 +53,18 @@ query StreamGuideTournamentSummary($id: ID!, $videogameIds: [ID]!) {
 }
 `;
 
+const SUMMARY_BY_SLUG_QUERY = String.raw`
+query StreamGuideTournamentSummaryBySlug($slug: String!, $videogameIds: [ID]!) {
+  tournament(slug: $slug) {
+    id name slug startAt endAt timezone city addrState countryCode numAttendees
+    events(filter: { videogameId: $videogameIds, published: true }) {
+      id name startAt state numEntrants competitionTier
+      videogame { id name displayName }
+    }
+  }
+}
+`;
+
 const STREAMS_QUERY = String.raw`
 query StreamGuideTournamentStreams($id: ID!) {
   tournament(id: $id) {
@@ -239,6 +251,17 @@ export class StartGGClient {
     );
     const node = data.tournament;
     if (!node) throw new StartGGError(`Tournament ${tournamentId} was not found`);
+    return this.parseSummary(node);
+  }
+
+  async getTournamentSummaryBySlug(tournamentSlug) {
+    const data = await this.graphql(
+      SUMMARY_BY_SLUG_QUERY,
+      { slug: tournamentSlug, videogameIds: [...SMASH_GAME_IDS] },
+      'StreamGuideTournamentSummaryBySlug',
+    );
+    const node = data.tournament;
+    if (!node) throw new StartGGError(`Tournament ${tournamentSlug} was not found`);
     return this.parseSummary(node);
   }
 
