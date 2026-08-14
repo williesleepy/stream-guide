@@ -740,3 +740,124 @@ test('official broadcast fallback still works when the start.gg streams query fa
   assert.equal(snapshot.weekly.length, 1);
   assert.equal(snapshot.weekly[0].summary.id, 'ceo');
 });
+
+
+test('entrant count outranks competition tier when filling weekly slots', async () => {
+  const now = new Date('2026-08-13T20:00:00Z');
+  const friday = Math.floor(new Date('2026-08-14T16:00:00Z').getTime() / 1000);
+
+  const ceo = tournament({
+    id: 'ceo-2026',
+    name: 'CEO 2026',
+    entrants: 246,
+    tier: null,
+    startAt: friday,
+    endAt: friday + 2 * 24 * 60 * 60,
+    timezone: 'America/New_York',
+  });
+  ceo.slug = 'tournament/ceo-2026';
+
+  const smallerTiered = Array.from({ length: 10 }, (_, index) =>
+    tournament({
+      id: `tiered-${index}`,
+      name: `Tiered ${index}`,
+      entrants: 80 + index,
+      tier: 1,
+      startAt: friday + index * 60,
+      endAt: friday + 8 * 60 * 60,
+      timezone: 'America/New_York',
+    }),
+  );
+
+  const broadcast = new Broadcast({
+    id: 'stream',
+    enabled: true,
+    streamName: 'stream',
+    streamSource: 'TWITCH',
+  });
+
+  const startgg = {
+    async discoverWeek() {
+      return [ceo, ...smallerTiered];
+    },
+    async getTournamentBroadcasts() {
+      return [broadcast];
+    },
+    async getTournamentDetail(id) {
+      const summary = [ceo, ...smallerTiered].find((item) => item.id === id);
+      return new TournamentDetail(summary, [broadcast]);
+    },
+  };
+
+  const service = new GuideService(config(), startgg);
+  await service.discover(now);
+
+  assert.equal(service.selected.length, 10);
+  assert.equal(service.selected.some((item) => item.summary.id === 'ceo-2026'), true);
+  assert.equal(service.selected[0].summary.id, 'ceo-2026');
+});
+
+test('exact broadcast override slug is directly seeded when generic discovery misses CEO', async () => {
+  const now = new Date('2026-08-13T21:08:00-04:00');
+  const startAt = Math.floor(new Date('2026-08-14T12:00:00-04:00').getTime() / 1000);
+  const endAt = Math.floor(new Date('2026-08-16T23:00:00-04:00').getTime() / 1000);
+  const ceo = tournament({
+    id: 'ceo-id',
+    name: 'CEO 2026',
+    entrants: 324,
+    startAt,
+    endAt,
+    eventStartAt: startAt,
+    timezone: 'America/New_York',
+    city: 'Orlando',
+    addrState: 'FL',
+    countryCode: 'US',
+  });
+  ceo.slug = 'tournament/ceo-2026';
+
+  const fallback = new Broadcast({
+    id: 'override:ceo',
+    enabled: true,
+    isOnline: null,
+    streamName: 'Official CEO 2026 broadcast hub',
+    streamSource: 'WEB',
+    urlOverride: 'https://ceogaming.org/tv/',
+    origin: 'override',
+  });
+
+  const seededSlugs = [];
+  const startgg = {
+    async discoverWeek() {
+      return []; // Reproduces the real failure: broad discovery misses CEO.
+    },
+    async getTournamentSummaryBySlug(slug) {
+      seededSlugs.push(slug);
+      return ceo;
+    },
+    async getTournamentBroadcasts() {
+      return [];
+    },
+    async getTournamentDetail() {
+      return new TournamentDetail(ceo, []);
+    },
+  };
+
+  const resolver = {
+    tournamentSlugs() {
+      return ['tournament/ceo-2026'];
+    },
+    merge(summary, broadcasts) {
+      return summary.slug === 'tournament/ceo-2026' ? [...broadcasts, fallback] : broadcasts;
+    },
+    async resolve(summary, broadcasts) {
+      return this.merge(summary, broadcasts);
+    },
+  };
+
+  const service = new GuideService(config(), startgg, { warn() {}, info() {} }, resolver);
+  await service.discover(now);
+
+  assert.deepEqual(seededSlugs, ['tournament/ceo-2026']);
+  assert.deepEqual(service.selected.map((item) => item.summary.slug), ['tournament/ceo-2026']);
+  assert.equal(service.selected[0].broadcasts[0].streamName, 'Official CEO 2026 broadcast hub');
+});
