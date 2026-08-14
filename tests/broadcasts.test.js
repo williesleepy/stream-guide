@@ -114,3 +114,12 @@ test('Twitch verification marks an attached Twitch channel offline when Helix re
 
   assert.equal(broadcast.isOnline, false);
 });
+
+test('broadcast resolver exposes exact tournament slugs for discovery seeding', () => {
+  const resolver = new BroadcastResolver({
+    overridesPath: 'config/broadcast-overrides.json',
+    logger: { warn() {} },
+  });
+
+  assert.deepEqual(resolver.tournamentSlugs(), ['tournament/ceo-2026']);
+});
